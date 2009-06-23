@@ -1,0 +1,57 @@
+constantes
+  MAX_SOMMETS = 100
+
+types
+
+  t_vect_entiers = MAX_SOMMETS entier
+
+algorithme procedure prof_rec
+      parametres locaux
+           t_graphe_s      G
+           entier          s, no
+      parametres globaux
+           t_vect_entiers      M
+      Variables
+           entier       i
+debut
+  M[s] <- no
+  pour i <- 1 jusque G.ordre faire
+    si (G.adj[s,i] <> 0) et (M[i] = 0) alors
+      prof_rec(G, i, no, M)
+    fin si
+  fin pour
+fin algorithme procedure prof_rec
+
+algorithme fonction connexite : entier
+      parametres locaux
+           t_graphe_s       G
+      parametres globaux
+           t_vect_entiers      cc
+      Variables
+           entier       i, no
+debut
+      pour i <- 1 jusque G.ordre faire
+           cc[i] <- 0
+      fin pour
+      no <- 0
+      pour i <- 1 jusque G.ordre faire
+           si cc[i] = 0 alors
+                 no <- no+1
+                 prof_rec (G, i, no, cc)
+           fin si
+      fin pour
+      retourne (no)
+fin algorithme fonction connexite
+
+Variables
+  t_graphe_s		g
+  t_vect_entiers	cc
+  entier		i
+debut
+  charger_graphe("graph-ex.gr",g)
+  ecrire(connexite(g,cc),"\n|")
+  pour i <- 1 jusque g.ordre faire
+    ecrire(" (",i,",",cc[i],") |")
+  fin pour
+  ecrire("\n")
+fin
