@@ -1,0 +1,50 @@
+algorithme fonction recherche : t_listsom
+  Parametres locaux
+    entier		s
+    t_graphe_d		g
+  Variables
+    t_listsom		ps
+debut
+  ps <- g.lsom
+  tant que (ps <> NUL et ps^.som <> s) faire
+    ps <- ps^.suiv
+  fin tant que
+  retourne ps
+fin algorithme fonction recherche
+
+algorithme procedure affiche
+  Parametres locaux
+    t_graphe_d		g
+  Variables
+    t_listsom		ps
+    t_listadj		pa
+debut
+  ecrire("g: ",g.ordre,", ")
+  si (g.orient) alors
+    ecrire("oriente\n")
+  sinon
+    ecrire("non oriente\n")
+  fin si
+  ecrire("  Sommets:\n")
+  ps <- g.lsom
+  tant que ps <> NUL faire
+    ecrire("\t",ps^.som,": ")
+    pa <- ps^.succ
+    tant que pa <> NUL faire
+      ecrire("(",pa^.vsom^.som,",", pa^.cout, ",", pa^.nbliens, ")")
+      pa <- pa^.suiv
+    fin tant que
+    ecrire("\n")
+    ps <- ps^.suiv
+  fin tant que
+fin algorithme procedure affiche
+
+Variables
+  t_graphe_d		g
+  t_listsom		ps
+debut
+  charger_graphe("graph-ex.gr",g)
+  affiche(g)
+  ecrire(g,"\n")
+  /* toto */
+fin
