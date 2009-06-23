@@ -1,0 +1,263 @@
+**********************************************************************
+****************************** epi-algo ******************************
+**********************************************************************
+
+== EPITA's Algorithmic Language Interpreter ==
+
+The EPITA's algorithmic language is educational programming language
+derived from Pascal using french keywords and providing the full set
+of expected features of a programming language (functions, procedures,
+pointers, array, records ... )
+
+While originally of theoretic purpose, the language can be interpreted
+using epi-algo, a small interpreter (written in OCaml), to test a
+validate classical algorithm.
+
+epi-algo also comes with a builtin graph loader that map graph
+described in text files to classical representation using adjacent
+matrix or a more dynamic version based on linked lists (vertex list
+and edge lists.)
+
+== Building ==
+
+Actually the project only depends on OCaml base distribution, you will
+need a version superior to 3.09 (3.10 or higher is prefered.) We
+provide a Makefile for version <3.10 and a _tags file to use with
+ocamlbuild (OCaml version >=3.10).
+
+We do not provide a "simple" way of building/installing the project at
+that moment, you will have to produce the binary (quite easy step) and
+name and copy it yourself depending on your need.
+
+A more complete and practical build procedure is on the way an will be
+available soon (rather quite soon.)
+
+For more information on OCaml and related tools (ocamlopt, ocamlc,
+ocamllex, ocamlyacc, ocamldep, camlp4, ocamlbuild ... ) see the OCaml
+page:
+
+  http://caml.inria.fr
+
+=== Building with ocamlbuild (OCaml >= 3.10) ===
+
+Go to the source repos, and just type:
+
+$ ocamlbuild main.native
+
+It will produce a symbolic link "main.native" to the native binary in
+_build directory.
+
+If your arch doesn't support OCaml native compilation (see OCaml site)
+you will have to build the bytecode version:
+
+$ ocamlbuild main.byte
+
+In that case, you obtain a main.byte link just like the native
+case. Just be aware that while the native binary is "almost"
+standalone (no specific OCaml depency, but still dynamically linked
+elf binary against your libc), the bytecode version (main.byte)
+requires ocamlrun (the OCaml VM) to run.
+
+=== Building using make ===
+
+We provide a simple Makefile to use with make. It is a BSD compatible
+Makefile, not a GNU compatible Makefile. If the command make is not
+"BSD compatible", you will have to modify the variable BSD in the
+Makefile to point out on a "BSD make compatible" command (ususally
+called pmake.)
+
+More advance users can seek out the very small set of BSD specific
+idiom in the Makefile (auto-inclusion of .depend, $> corresponding to
+"all sources" ... )
+
+The main targer of the Makefile will produce a native binary called
+algo which is almost standalone (again, it is a dynamically linked
+elf binary, but it only depends on libc.)
+
+== Using ==
+
+Usage is quite simple, you give the command the path to a file to
+interpret and it will output the result on standard out. It can also
+take input directly on standard input.
+
+The command support the following flags:
+
+ *  -tex         pretty-print in LaTeX
+ *  -print-only  pretty-print only
+ *  -type-only   only type validation
+ *  -print       type validation and pretty-printing
+ *  -help        Display this list of options
+ *  --help       Display this list of options
+
+Pretty-printing output (almost) the same input (without comments and
+somehow repaginate.) LaTeX outs outputs a block in alltt
+envirronnement using some macros (available in the source dir) to
+enhance source readability (bold face keywords and some special
+non-ascii characters.)
+
+A full language description will be available soon, but you can find
+examples on the site.
+
+=== Graph support ===
+
+We support graph loading using a very simple graph description
+format. Here is an example:
+
+{
+  oriente;
+  ordre: 3;
+  1 -> (2,1);
+  2 -> (3,2.,1);
+  3 -> (1,0.5,1);
+}
+
+the key word "oriente" indicate that the graph is directed, ordre
+specifies the number of vertex and lines describing edges of the form:
+
+source -> (destination, cost, numberOfLinks);
+
+(where cost is not mandatory)
+
+You can load any graph in your code using the primitive
+`charger_graphe(file,g)` where `file` is the path to file and `g` is
+a left-value where the graph will be store (usually a variable.)
+
+The obtain graph is represented using two possible models (depending
+on the type of `g`):
+
+ * `t_graphe_s` : a static representation based on matrix
+ * `t_graphe_d` : a dynamic representation based on linked-lists
+
+The type are pre-defined using the two following set of definitions:
+
+/* Static model */
+constantes
+  MAX_SOMMETS = 100
+
+types
+  t_mat_adj =  MAX_SOMMETS * MAX_SOMMETS entier
+  t_mat_cout = MAX_SOMMETS * MAX_SOMMETS reel
+
+  t_graphe_s = enregistrement
+    entier	ordre
+    booleen	orient
+    t_mat_adj	adj
+    t_mat_cout	cout
+  fin enregistrement
+
+/* Dynamic model */
+types
+  t_listsom = ^s_som
+  t_listadj = ^s_adj
+
+  s_som = enregistrement
+    entier	som
+    t_listadj	succ,pred
+    t_listsom	suiv
+  fin enregistrement
+
+  s_adj = enregistrement
+    entier	nbliens
+    reel	cout
+    t_listsom	vsom
+    t_listadj	suiv
+  fin enregistrement
+
+  t_graphe_d = enregistrement
+    entier	ordre
+    booleen	orient
+    t_listsom	lsom
+  fin enregistrement
+
+`charger_graphe` is able to decide wich representation to use
+depending on the type of its parametters.
+
+Examples:
+
+/* using t_graphe_s */
+
+algorithme fonction degre : entier
+  Parametres locaux
+    t_graphe_s		g
+    entier		s
+  Variables
+    entier		d,i
+debut
+  d <- 0
+  pour i <- 1 jusque g.ordre faire
+    d <- d + g.adj[s,i]
+  fin pour
+  d <- d + g.adj[s,s]
+  retourne d
+fin algorithme fonction degre
+
+Variables
+  t_graphe_s		g
+
+debut
+  charger_graphe("mon-graphe",g)
+  ecrire("degre de 1 dans g : ",degre(g,1),"\n")
+fin
+
+/* using t_graphe_d */
+
+algorithme fontion recherche : t_listsom
+  Parametres locaux
+    entier		s
+    t_graphe_d		g
+  Variables
+    t_listsom		ps
+debut
+  ps <- g.lsom
+  tant que ps <> NUL et ps^.som <> s faire
+    ps <- ps^.suiv
+  fin tant que
+  retourne ps
+fin algorithme fontion recherche
+
+algorithme fontion degre : entier
+  Parametres locaux
+    t_listsom		ps
+  Variables
+    t_listadj		pa
+    entier		d
+debut
+  pa <- ps^.succ
+  d <- 0
+  tant que pa <> NUL faire
+    d <- d + pa^.nbliens
+    si pa^vsom = ps alors
+      d <- d + pa^.nbliens
+    fin si
+  fin tant que
+  retourne d
+fin algorithme fontion degre
+
+Variables
+  t_graphe_d		g
+
+debut
+  charger_graphe("mon-graphe",g)
+  ecrire("degre de 1 dans g : ",degre(recherche(1,g)),"\n")
+fin
+
+== TODO ==
+
+ * an automatic build system
+ * documentation
+ * complete and better error messages
+ * array pretty-printing
+ * module supports
+ * step-by-step execution
+ * support for `@` operator (address retrieval of left-value)
+ * more pre-defined data structures (stack, queue, heap ... )
+ * TESTS !
+
+== Links ==
+
+ * This project: http://code.google.com/p/epi-algo/
+ * EPITA: http://www.epita.fr
+ * EPITA's Algorithmic course supports:
+     http://nathalie.bouquet.free.fr/epita/index.php
+ * second year EPITA's programming course: http://wiki-prog.kh405.net/
+ * OCaml: http://caml.inria.fr
