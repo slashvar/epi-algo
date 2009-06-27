@@ -1,79 +1,37 @@
-## TP OCaml compilation
+# Makefile for epi-algo
 
-# Au besoin on peut changer les compilateurs par défaut
-OCAMLC=ocamlc.opt
-OCAMLPP=  -I +camlp4 -pp camlp4of.opt
-OCAMLOPT=ocamlopt.opt
-YACC=ocamlyacc
-LEX=ocamllex.opt
+PREFIX=${HOME}/bin
 
-PARSER=parser
-LEXER=lexer
-ML= ast.ml typing.ml ${PARSER}.ml ${LEXER}.ml mangling.ml memory.ml builtins.ml primitives.ml
-PPML = native_data.ml
-CMO=${ML:.ml=.cmo}
-CMX=${ML:.ml=.cmx}
-PPCMO=${PPML:.ml=.cmo}
-PPCMX=${PPML:.ml=.cmx}
-FULLCMO=${CMO} ${PPCMO} t_graphe.cmo main.cmo
-FULLCMX=${CMX} ${PPCMX} t_graphe.cmx main.cmx
-PRG=algo
+OCBUILD=ocamlbuild.native
+ML=ast.ml builtins.ml main.ml mangling.ml memory.ml native_data.ml \
+   primitives.ml t_graphe.ml typing.ml lexer.mll parser.mly
 
-BSD=make
+all: epi-algo
 
-all: .depend
-	${BSD} ${PRG}
+epi-algo: _build/main.native
+	cp _build/main.native epi-algo
 
-${PRG}: ${FULLCMX}
-	${OCAMLOPT} -o ${PRG} str.cmxa $>
+epi-algo.byte: _build/main.byte
+	cp _build/main.byte epi-algo.byte
 
-native_data.cmx: native_data.ml
-	${OCAMLOPT} ${OCAMLPP} -c $<
+_build/main.native: _tags ${ML}
+	${OCBUILD} main.native
 
-native_data.mli: native_data.ml
-	rm -f $@
-	${OCAMLOPT} ${OCAMLPP} -i $> > $@
+_build/main.byte: _tags ${ML}
+	${OCBUILD} main.byte
 
-# Le reste n'a pas de raison de changer
+install: epi-algo
+	mkdir -p ${PREFIX}
+	cp epi-algo ${PREFIX}
 
-.SUFFIXES: .ml .mli .cmo .cmi .cmx .opt .mly .mll
+uninstall:
+	rm -f ${PREFIX}/epi-algo
 
-# Generation d'un exécutable à partir d'un .ml (bytecode)
-.ml:
-	${OCAMLC} -o $@ $<
+clean-build::
+	rm -f *~
+	${OCBUILD} -clean
 
-# Generation d'un exécutable à partir d'un .ml (natif)
-.ml.opt:
-	${OCAMLOPT} -o $@ $<
+clean:: clean-build
+	rm -f epi-algo epi-algo.byte
 
-.mli.cmi:
-	${OCAMLC} -c $<
-
-.ml.cmo:
-	${OCAMLC} -c $<
-
-.ml.cmx:
-	${OCAMLOPT} -c $<
-
-.mly.ml:
-	${YACC} -v $<
-
-.mll.ml:
-	${LEX} $<
-
-.depend: ${PARSER}.ml ${LEXER}.ml
-	rm -f .depend
-	ocamldep.opt -native ${ML} *.mli main.ml > .depend
-	ocamldep.opt -native t_graphe.ml >> .depend
-	ocamldep.opt -native ${OCAMLPP} ${PPML} >> .depend
-
-# some cleaning ...
-clean::
-	rm -f *~                 # do we use emacs ;)
-	rm -f *.cm[iox] *.o      # remove comp prod
-	rm -f ${PRG}
-
-fullclean: clean
-	rm -f ${PARSER}.ml ${PARSER}.mli ${PARSER}.output ${LEXER}.ml .depend
-
-# THE END (do not delete)
+# END
