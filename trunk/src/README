@@ -42,29 +42,29 @@ page:
 
 Go to the source repos, and just type:
 
-$ ocamlbuild main.native
+$ make
 
-It will produce a symbolic link "main.native" to the native binary in
-_build directory.
+It will produce a binary file epi-algo (and a symlink main.native to
+_build/main.native) which normally only depends on your local libc.
 
 If your arch doesn't support OCaml native compilation (see OCaml site)
 you will have to build the bytecode version:
 
-$ ocamlbuild main.byte
+$ make epi-algo.byte
 
-In that case, you obtain a main.byte link just like the native
+In that case, you obtain a epi-algo.byte just like the native
 case. Just be aware that while the native binary is "almost"
 standalone (no specific OCaml depency, but still dynamically linked
-elf binary against your libc), the bytecode version (main.byte)
+elf binary against your libc), the bytecode version (epi-algo.byte)
 requires ocamlrun (the OCaml VM) to run.
 
 === Building using make ===
 
-We provide a simple Makefile to use with make. It is a BSD compatible
-Makefile, not a GNU compatible Makefile. If the command make is not
-"BSD compatible", you will have to modify the variable BSD in the
-Makefile to point out on a "BSD make compatible" command (ususally
-called pmake.)
+We provide a simple Makefile (called Makefile.pmake) to use with
+make. It is a BSD compatible Makefile, not a GNU compatible
+Makefile. If the command make is not "BSD compatible", you will have
+to modify the variable BSD in the Makefile to point out on a "BSD make
+compatible" command (ususally called pmake.)
 
 More advance users can seek out the very small set of BSD specific
 idiom in the Makefile (auto-inclusion of .depend, $> corresponding to
@@ -73,6 +73,15 @@ idiom in the Makefile (auto-inclusion of .depend, $> corresponding to
 The main targer of the Makefile will produce a native binary called
 algo which is almost standalone (again, it is a dynamically linked
 elf binary, but it only depends on libc.)
+
+You can use it, like this:
+
+# With a BSD Make as default make
+$ make -f Makefile.pmake
+
+# Using pmake when GNU Make is the default make
+# first replace make in the BSD variable of the makefile with pmake
+$ make -f Makefile.pmake
 
 == Using ==
 
