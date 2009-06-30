@@ -1,0 +1,168 @@
+%%  Copyright (c) 2009, Marwan BURELLE
+%%  All rights reserved.
+
+%%  Redistribution and use in source and binary forms, with or without
+%%  modification, are permitted provided that the following conditions
+%%  are met:
+
+%%  * Redistributions of source code must retain the above copyright
+%%    notice, this list of conditions and the following disclaimer.
+%%  * Redistributions in binary form must reproduce the above
+%%    copyright notice, this list of conditions and the following
+%%    disclaimer in the documentation and/or other materials provided
+%%    with the distribution.
+%%  * Neither the name of the Marwan Burelle nor the names of its
+%%    contributors may be used to endorse or promote products derived
+%%    from this software without specific prior written permission.
+
+%%  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+%%  CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+%%  INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+%%  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+%%  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS
+%%  BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+%%  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+%%  TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+%%  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+%%  ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+%%  TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
+%%  THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+%%  SUCH DAMAGE.
+
+%% epi-algo: EPITA's algorithmic language
+%% epi-algo-basis: a short description of the language
+
+\documentclass[a4paper, pdftex, 12pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage{txfonts}
+\usepackage[A4]{vmargin}
+\usepackage{alltt}
+
+\usepackage{epi-algo}
+
+\title{\emph{epi-algo}: Quick Survey}
+\author{Marwan Burelle}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+\label{sec:intro}
+
+The EPITA's algorithmic language is a formal programming language with
+a strong educational purpose. It is a structured imperative
+programming language \emph{à la} Pascal but with french keywords. In
+this document we describe the basis of the syntax accepted by the
+interpreter \emph{epi-algo} rather than the theoretic syntax used for
+algorithmic lectures at EPITA.
+
+\section{Global Structure}
+\label{sec:orga}
+
+An input to \emph{epi-algo} is divided in sections:
+\begin{itemize}
+\item Constant declarations;
+\item Type declarations;
+\item Algorithm declarations (functions and procedures);
+\item Main block.
+\end{itemize}
+
+Actually, the main block and at least one algorithm declaration are
+mandatory. Constants and types can be avoided, but note that the
+language is quite limited on parameters and variables' types (for
+example, you need to define a specific type for each kind of array you
+will use.)
+
+\subsection{Constants}
+\label{sec:const}
+
+The first block you can provide is constant definitions. The block is
+introduced by the keywords \texttt{constantes} (or
+\texttt{Constantes}) and follow by lines of the form:
+\begin{center}
+  \texttt{\textit{name} = \textit{constant-expression}}
+\end{center}
+
+\subsection{Types}
+\label{sec:types}
+
+The type definitions block is introduced by the keywords
+\texttt{types} (or \texttt{Types}) and is composed of lines (or blocks
+of lines) of the form:
+\begin{center}
+  \texttt{\textit{type-name} \textbf{=} \textit{type-expression}}
+\end{center}
+
+\noindent A \texttt{\textit{type-expression}} is defined as:
+\begin{alltt}
+\textit{type-expression} ::=
+    \textit{type-name}
+  | \textit{integer-constant} \textbf{*} \ldots \textbf{*} \textit{integer-constant} \textit{type-name}
+  | \textit{record-definition}
+  | \textbf{^}\textit{type-name}
+\end{alltt}
+
+\noindent A \textit{record-definition} as the form:
+\begin{alltt}
+\textbf{enregistrement}
+  \textit{field-name} \textit{type-name}, \ldots, \textit{type-name}
+           \ldots
+  \textit{field-name} \textit{type-name}, \ldots, \textit{type-name}
+\textbf{fin enregistrement}
+\end{alltt}
+
+\noindent\texttt{\textit{integer-constant} \textbf{*} \ldots \textbf{*}
+  \textit{integer-constant} \textit{type-name}} represent array of
+\textit{type-name} and each integer in the list indicate the length of
+the array for the corresponding dimension (\emph{i.e.} a square matrix
+of integer of length 4 will be defined as \texttt{4 * 4 entier}.)
+
+\subsubsection{Base types}
+\label{sec:btypes}
+
+The language provides the following basic types:
+\begin{itemize}
+\item \texttt{entier}: classic signed integer
+\item \texttt{reel}: classic floating point number (fully standard)
+\item \texttt{booleen}: boolean truth value (here \texttt{vrai} and
+  \texttt{faux})
+\item \texttt{chaine}: character strings
+\item \texttt{caractere}: characters
+\end{itemize}
+
+\subsubsection{Examples}
+\label{sec:typeexample}
+
+Classic static array based integer vectors:
+\begin{alltt}
+\textbf{Constantes}
+  MAX = 32768
+\textbf{Types}
+  t_vect_entier = MAX entier
+  t_vecteur = \textbf{enregistrement}
+    entier              dernier
+    t_vect_entier       tab
+  \textbf{fin enregistrement}
+\end{alltt}
+
+\noindent Classic double-linked integer list:
+\begin{alltt}
+\textbf{Types}
+  t_liste = \textbf{^}s_liste
+  s_liste = \textbf{enregistrement}
+    entier              elem
+    t_liste             suiv, prec
+  \textbf{fin enregistrement}
+\end{alltt}
+
+\section{Language Syntax}
+\label{sec:syntax}
+
+\section{Builtin Procedure}
+\label{sec:builtin}
+
+
+
+\end{document}
