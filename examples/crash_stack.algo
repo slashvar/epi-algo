@@ -1,0 +1,164 @@
+Constantes
+  MAX = 100
+Types
+  t_vect_entier = MAX entier
+  t_vect_reel   = MAX reel
+
+  t_file = ^s_file
+  s_file = enregistrement
+    entier		elem
+    t_file		suiv, pred
+  fin enregistrement
+
+  t_arc = enregistrement
+    reel		cout
+    entier		dst
+    t_listsom		ps
+  fin enregistrement
+
+  t_vect_arc = MAX t_arc
+
+  t_tas = enregistrement
+    entier		taille
+    t_vect_arc		tab
+    t_vect_entier	index
+  fin enregistrement
+
+algorithme fonction arc : t_arc
+  Parametres locaux
+    reel		cout
+    t_listsom		ps
+  Variables
+    t_arc		a
+debut
+  a.dst <- ps^.som
+  a.cout <- cout
+  a.ps <- ps
+  retourne a
+fin algorithme fonction arc
+
+algorithme fonction tas_vide : t_tas
+  Variables
+    t_tas		t
+    entier		i
+debut
+  pour i <- 1 jusque 100 faire
+    t.index[i] <- 0
+  fin pour
+  t.taille <- 0
+  retourne t
+fin algorithme fonction tas_vide
+
+algorithme fonction est_tas_vide : booleen
+  Parametres locaux
+    t_tas		t
+debut
+  retourne t.taille = 0
+fin algorithme fonction est_tas_vide
+
+algorithme procedure ajout
+  Parametres locaux
+    reel		cout
+    t_listsom		ps
+  Parametres globaux
+    t_tas		t
+  Variables
+    entier		pos
+    t_arc		a
+debut
+  a <- arc(cout,ps)
+  t.taille <- t.taille + 1
+  pos <- t.taille
+  tant que pos > 1 et t.tab[pos/2].cout > cout faire
+    t.tab[pos] <- t.tab[pos/2]
+    pos <- pos / 2
+  fin tant que
+  t.tab[pos] <- a
+  t.index[a.dst] <- pos
+fin algorithme procedure ajout
+
+algorithme fonction prend_min : t_arc
+  Parametres globaux
+    t_tas		t
+  Variables
+    t_arc		a
+    entier		trou,succ,pred
+    reel		k
+debut
+  a <- t.tab[1]
+  trou <- 1
+  succ <- 2
+  tant que succ < t.taille faire
+    si t.tab[succ].cout > t.tab[succ+1].cout alors
+      succ <- succ + 1
+    fin si
+    t.tab[trou] <- t.tab[succ]
+    trou <- succ
+    succ <- succ * 2
+  fin tant que
+  k <- t.tab[t.taille].cout
+  pred <- trou/2
+  tant que pred > 1 et t.tab[pred].cout > k faire
+    t.tab[trou] <- t.tab[pred]
+    trou <- pred
+    pred <- pred / 2
+  fin tant que
+  t.tab[trou] <- t.tab[t.taille]
+  t.taille <- t.taille - 1
+  t.index[a.dst] <- 0
+  retourne a
+fin algorithme fonction prend_min
+
+algorithme procedure maj
+  Parametres locaux
+    reel		cout
+    t_listsom		ps
+  Parametres globaux
+    t_tas		t
+  Variables
+    entier		pos
+    t_arc		a
+debut
+  pos <- t.index[ps^.som]
+  si (pos = 0) alors
+    ajout(cout,ps,t)
+  sinon
+    a <- t.tab[pos]
+    a.cout <- cout
+    tant que pos > 1 et t.tab[pos/2].cout > cout faire
+      t.tab[pos] <- t.tab[pos/2]
+      pos <- pos/2
+    fin tant que
+    t.tab[pos] <- a
+    t.index[ps^.som] <- pos
+  fin si
+fin algorithme procedure maj
+
+algorithme fonction recherche : t_listsom
+  Parametres locaux
+    entier			s
+    t_graphe_d			g
+  Variables
+    t_listsom			ps
+debut
+  ps <- g.lsom
+  tant que ps <> NUL et ps^.som <> s faire
+    ps <- ps^.suiv
+  fin tant que
+  retourne ps
+fin algorithme fonction recherche
+
+Variables
+  t_graphe_d			g
+  entier			i
+  t_listsom			ps
+  t_tas				t
+debut
+  charger_graphe("graphe-exo2.gr",g)
+  ps <- g.lsom
+  ecrire(ps^,"\n")
+  t <- tas_vide()
+  ajout(0,ps^.suiv,t)
+  ps <- prend_min(t).ps
+  ecrire(ps^,"\n")
+fin

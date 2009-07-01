@@ -2,7 +2,9 @@
 
 PREFIX=${HOME}/bin
 
-OCBUILD=ocamlbuild.native
+OCB_DISPLAY = `[ "x${EMACS}" = "xt" ] && echo "-classic-display"`
+
+OCBUILD=ocamlbuild.native ${OCB_DISPLAY}
 ML=ast.ml builtins.ml main.ml mangling.ml memory.ml native_data.ml \
    primitives.ml t_graphe.ml typing.ml lexer.mll parser.mly
 
@@ -15,10 +17,10 @@ epi-algo.byte: _build/main.byte
 	cp _build/main.byte epi-algo.byte
 
 _build/main.native: _tags ${ML}
-	${OCBUILD} main.native
+	@${OCBUILD} main.native
 
 _build/main.byte: _tags ${ML}
-	${OCBUILD} main.byte
+	@${OCBUILD} main.byte
 
 install: epi-algo
 	mkdir -p ${PREFIX}
@@ -29,7 +31,7 @@ uninstall:
 
 clean-build::
 	rm -f *~
-	${OCBUILD} -clean
+	@${OCBUILD} -clean
 
 clean:: clean-build
 	rm -f epi-algo epi-algo.byte
