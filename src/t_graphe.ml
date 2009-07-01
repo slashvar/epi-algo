@@ -291,5 +291,6 @@ object (s:'s)
       end
 
   method fusion_senv se = Typing.static_env_fusion se graph_senv
+  method get_static_env d = Typing.extend_static_env graph_senv d
 
 end

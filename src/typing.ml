@@ -172,6 +172,7 @@ object (s:'self)
     match (s#real_type t1, s#real_type t2) with
 	(Pointer (TVoid), Pointer _) | (Pointer _, Pointer (TVoid))
 	  -> true
+      | (TInt,TFloat) | (TFloat,TInt) -> true
       | (rt1,rt2) -> rt1 = rt2
   method make_real_type tn =
     s#real_type (of_type_name ts tn)
@@ -201,6 +202,28 @@ let build_static_env d =
        (new type_env ts)
        d.Ast.types
     )
+
+let extend_static_env (c1,ts1,te1) d =
+  let cte_env = make_cte_env d.Ast.constants in
+  let c  = Env.fold Env.add c1 (type_cte_env cte_env) in
+  let ts = List.fold_left
+    (fun s (n,_,_) -> TypeSet.add n s) ts1 d.Ast.types
+  in
+  let te = new type_env ts in
+    te#import te1;
+    try
+      (c, ts,
+       List.fold_left
+	 (fun env (s,td,_) -> env#add s (eval_type ts cte_env td); env)
+	 te
+	 d.Ast.types
+    )
+    with
+	Type_unknown t ->
+	  begin
+	    Printf.fprintf stderr "type inconnu %s\n" t;
+	    exit 4
+	  end
 
 let static_env_fusion (c1,ts1,te1) (c2,ts2,te2) =
   let c  = Env.fold Env.add c2 c1 in
@@ -491,7 +514,8 @@ let rec check_instr ret ((cte_env,ts,type_env) as staticenv) fenv env =
 		  Not_found ->
 		    begin
 		      try
-			ignore(fenv#builtins#typecheck p (new typing_ctx staticenv etl l) l)
+			ignore(fenv#builtins#typecheck p
+				 (new typing_ctx staticenv etl l) l)
 		      with
 			  Not_found -> raise (Unknown_id (p,l))
 		    end
@@ -499,21 +523,6 @@ let rec check_instr ret ((cte_env,ts,type_env) as staticenv) fenv env =
 		Type_mismatch (t1,t2) ->
 		  raise_type_mismatch "function application" t1 t2 l
 	  end
-
-
-(* 	begin *)
-(* 	  let ft = *)
-(* 	    try fenv#find p with Not_found -> raise (Unknown_id (p,l)) *)
-(* 	  in *)
-(* 	  let etl = *)
-(* 	    List.map *)
-(* 	      (fun e -> *)
-(* 		 (check_expr staticenv fenv env e,e) *)
-(* 	      ) el *)
-(* 	  in *)
-(* 	    if not (type_env#eq (apply type_env ft etl) TVoid) then *)
-(* 	      raise (Type_error (p^" is not a procedure",l)) *)
-(* 	end *)
     | Ast.Return (e,l) ->
 	begin
 	  if not (
@@ -640,6 +649,47 @@ let rec check_instr ret ((cte_env,ts,type_env) as staticenv) fenv env =
 	    ) sl;
 	  end
 
+let rec auto_cast ret ((cte_env,ts,type_env) as staticenv) fenv env =
+  function
+      Ast.Affect(e1,e2,l) as i->
+	begin
+	  match (type_env#real_type (check_expr staticenv fenv env e1),
+		 type_env#real_type (check_expr staticenv fenv env e2)) with
+	      (TInt,TFloat) -> Ast.Affect(e1,Ast.UniOp("f2i",e2,l),l)
+	    | (TFloat,TInt) -> Ast.Affect(e1,Ast.UniOp("i2f",e2,l),l)
+	    | _             -> i
+	end
+    | Ast.Return (e,l) as i ->
+	begin
+	  match (type_env#real_type ret,
+		 type_env#real_type (check_expr staticenv fenv env e)) with
+	      (TInt,TFloat) -> Ast.Return(Ast.UniOp("f2i",e,l),l)
+	    | (TFloat,TInt) -> Ast.Return(Ast.UniOp("i2f",e,l),l)
+	    | _             -> i
+	end
+    | Ast.If(e,il,l) ->
+	Ast.If(e,List.map (auto_cast ret staticenv fenv env) il,l)
+    | Ast.IfElse (e,il1,il2,l) ->
+	Ast.IfElse(e,List.map (auto_cast ret staticenv fenv env) il1,
+	       List.map (auto_cast ret staticenv fenv env) il2,l)
+    | Ast.While(e,il,l) ->
+	Ast.While(e,List.map (auto_cast ret staticenv fenv env) il,l)
+    | Ast.DoWhile(e,il,l) ->
+	Ast.DoWhile(e,List.map (auto_cast ret staticenv fenv env) il,l)
+    | Ast.ForUp (i,s,e,il,l) ->
+	Ast.ForUp(i,s,e,List.map (auto_cast ret staticenv fenv env) il,l)
+    | Ast.ForDown (i,s,e,il,l) ->
+	Ast.ForDown(i,s,e,List.map (auto_cast ret staticenv fenv env) il,l)
+    | Ast.Switch (e,sl,l) ->
+	Ast.Switch
+	  (e,
+	   List.map
+	     (fun (es,il) ->
+		(es, List.map (auto_cast ret staticenv fenv env) il)
+	     ) sl,
+	   l)
+    | i -> i
+
 let rec find_ret = function
     [] -> false
   | (Ast.Return (_,_))::_ -> true
@@ -712,6 +762,53 @@ let check_algo ((cte_env,ts,type_env) as staticenv) fenv = function
 	  fenv#add_proc p ftparam;
 	  List.iter (check_instr (TVoid) staticenv fenv env) il;
 	end
+
+let auto_cast_algo ((cte_env,ts,type_env) as staticenv) fenv = function
+    Ast.Function(f,t,pl,pg,vars,il) ->
+      let rec make_vect = function
+	  [] -> []
+	| (tn,pn,_) :: l ->
+	    List.map (fun s -> (s,of_type_name ts tn)) pn @ make_vect l
+      in
+      let tpl = make_vect pl in
+      let tpg = make_vect pg in
+      let tvar = make_vect vars in
+      let env =
+	List.fold_left (fun e (n,t) -> Env.add n t e)
+	  (List.fold_left (fun e (n,t) -> Env.add n t e)
+	     (List.fold_left (fun e (n,t) -> Env.add n t e) Env.empty tpl)
+	     tpg)
+	  tvar
+      in
+	begin
+	  if not (find_ret il) then
+	    raise (No_return f);
+	  Ast.Function
+	    (f,t,pl,pg,vars,
+	     List.map (auto_cast (of_type_name ts t) staticenv fenv env) il)
+	end
+  | Ast.Procedure(p,pl,pg,vars,il) ->
+      let rec make_vect = function
+	  [] -> []
+	| (tn,pn,_) :: l ->
+	    List.map (fun s -> (s,of_type_name ts tn)) pn @ make_vect l
+      in
+      let tpl = make_vect pl in
+      let tpg = make_vect pg in
+      let tvar = make_vect vars in
+      let env =
+	List.fold_left (fun e (n,t) -> Env.add n t e)
+	  (List.fold_left (fun e (n,t) -> Env.add n t e)
+	     (List.fold_left (fun e (n,t) -> Env.add n t e) Env.empty tpl)
+	     tpg)
+	  tvar
+      in
+	begin
+	  Ast.Procedure
+	    (p,pl,pg,vars,
+	     List.map (auto_cast (TVoid) staticenv fenv env) il)
+	end
+
 
 let check_entry_point ((cte_env,ts,type_env) as staticenv) fenv = function
     Ast.Main (vars,il) ->

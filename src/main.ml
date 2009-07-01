@@ -100,7 +100,6 @@ let main () =
       let lexbuf = Lexing.from_channel cin in
       let ((algos,td), entry_point) = Parser.main Lexer.token lexbuf in
       let (uname,entry_point) = Mangling.mangle_vars_entryp entry_point in
-      let static_env = Typing.build_static_env td in
       let builtins = Primitives.builtins () in
       let gl = new T_graphe.graph_loader_primitive in
       let _ =
@@ -108,7 +107,7 @@ let main () =
 	  builtins#add gl#make_builtin;
 	end
       in
-      let static_env = gl#fusion_senv static_env in
+      let static_env = gl#get_static_env td in
       let (_,_,te) = static_env in
       let fenv = new Typing.funEnv builtins in
 	if (not !po) then
@@ -118,9 +117,14 @@ let main () =
 	  end;
 	if (not (!po || !tpo || !pr)) then
 	  begin
-	    Format.printf "BEGIN EVALUATION:@.";
-	    Memory.eval te algos td entry_point builtins;
-	    Format.printf "END EVALUATION@."
+	    let algos =
+	      List.map
+		(Typing.auto_cast_algo static_env fenv)
+		algos
+	    in
+	      Format.printf "BEGIN EVALUATION:@.";
+	      Memory.eval te algos td entry_point builtins;
+	      Format.printf "END EVALUATION@."
 	  end;
 	if (!po || !pr) then
 	  begin
