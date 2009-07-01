@@ -1,0 +1,340 @@
+Constantes
+  MAX = 100
+Types
+  t_vect_entier = MAX entier
+  t_vect_reel   = MAX reel
+  t_file = ^s_file
+  s_file = enregistrement
+    entier		elem
+    t_file		suiv, pred
+  fin enregistrement
+
+  t_arc = enregistrement
+    reel		cout
+    entier		dst
+    t_listsom		ps
+  fin enregistrement
+
+  t_vect_arc = MAX t_arc
+
+  t_tas = enregistrement
+    entier		taille
+    t_vect_arc		tab
+    t_vect_entier	index
+  fin enregistrement
+
+algorithme fonction file_vide : t_file
+debut
+  retourne NUL
+fin algorithme fonction file_vide
+
+algorithme fonction est_vide : booleen
+  Parametres Locaux
+    t_file  f
+debut
+  retourne (f = NUL)
+fin algorithme fonction est_vide
+
+algorithme fonction enfiler : t_file
+  Parametres Locaux
+    entier  ps
+    t_file  f
+  Variables
+    t_file  tmp
+debut
+  allouer(tmp)
+  tmp^.elem <- ps
+  si f <> NUL alors
+    tmp^.suiv <- f
+    tmp^.pred <- f^.pred
+    f^.pred <- tmp
+    si tmp^.pred <> NUL alors
+      tmp^.pred^.suiv <- tmp
+    fin si
+  sinon
+    tmp^.pred <- tmp
+    tmp^.suiv <- tmp
+  fin si
+  retourne (tmp)
+fin algorithme fonction enfiler
+
+algorithme fonction defiler : entier
+  Parametres Globaux
+    t_file  f
+  Variables
+    entier  ps
+    t_file  tmp
+debut
+  ps <- f^.pred^.elem
+  si f = f^.pred alors
+    liberer(f)
+    f <- NUL
+  sinon
+    tmp <- f^.pred
+    f^.pred <- tmp^.pred
+    f^.pred^.suiv <- f
+    liberer(tmp)
+  fin si
+  retourne (ps)
+fin algorithme fonction defiler
+
+algorithme fonction max : entier
+  Parametres locaux
+    entier			a,b
+debut
+  si a>b alors
+    retourne a
+  fin si
+  retourne b
+fin algorithme fonction max
+
+algorithme fonction hauteur : entier
+  Parametres locaux
+    t_vect_entier		peres
+    entier			racine, nbnoeud
+  Variables
+    entier			h,i
+debut
+  h <- 0
+  pour i <- 1 jusque nbnoeud faire
+    si i <> racine et peres[i] = racine alors
+      h <- max(h,hauteur(peres,i,nbnoeud)+1)
+    fin si
+  fin pour
+  retourne h
+fin algorithme fonction hauteur
+
+algorithme fonction taille : entier
+  Parametres locaux
+    t_vect_entier		peres
+    entier			racine, nbnoeud
+  Variables
+    entier			h,i
+debut
+  h <- 1
+  pour i <- 1 jusque nbnoeud faire
+    si i <> racine et peres[i] = racine alors
+      h <- h+taille(peres,i,nbnoeud)
+    fin si
+  fin pour
+  retourne h
+fin algorithme fonction taille
+
+algorithme procedure affiche_largeur
+  Parametres locaux
+    t_vect_entier		peres
+    entier			racine, nbnoeud
+  Variables
+    t_file			f
+    entier			i,j
+debut
+  f <- file_vide()
+  f <- enfiler(racine,f)
+  f <- enfiler(0,f)
+  tant que non (est_vide(f)) faire
+    i <- defiler(f)
+    si (i = 0) alors
+      ecrire("/")
+      si non (est_vide(f)) alors
+        f <- enfiler(0,f)
+      fin si
+    sinon
+      ecrire(i," ")
+      pour j <- 1 jusque nbnoeud faire
+        si i <> j et peres[j] = i alors
+	  f <- enfiler(j,f)
+	fin si
+      fin pour
+    fin si
+  fin tant que
+  ecrire("\n")
+fin algorithme procedure affiche_largeur
+
+algorithme fonction arc : t_arc
+  Parametres locaux
+    reel		cout
+    t_listsom		ps
+  Variables
+    t_arc		a
+debut
+  a.dst <- ps^.som
+  a.cout <- cout
+  a.ps <- ps
+  retourne a
+fin algorithme fonction arc
+
+algorithme fonction tas_vide : t_tas
+  Variables
+    t_tas		t
+    entier		i
+debut
+  pour i <- 1 jusque MAX faire
+    t.index[i] <- 0
+  fin pour
+  t.taille <- 0
+  retourne t
+fin algorithme fonction tas_vide
+
+algorithme fonction est_tas_vide : booleen
+  Parametres locaux
+    t_tas		t
+debut
+  retourne t.taille = 0
+fin algorithme fonction est_tas_vide
+
+algorithme procedure ajout
+  Parametres locaux
+    reel		cout
+    t_listsom		ps
+  Parametres globaux
+    t_tas		t
+  Variables
+    entier		pos
+    t_arc		a
+debut
+  a <- arc(cout,ps)
+  t.taille <- t.taille + 1
+  pos <- t.taille
+  tant que pos > 1 et t.tab[pos/2].cout > cout faire
+    t.tab[pos] <- t.tab[pos/2]
+    pos <- pos / 2
+  fin tant que
+  t.tab[pos] <- a
+  t.index[a.dst] <- pos
+fin algorithme procedure ajout
+
+algorithme fonction prend_min : t_arc
+  Parametres globaux
+    t_tas		t
+  Variables
+    t_arc		a
+    entier		trou,succ,pred
+    reel		k
+debut
+  a <- t.tab[1]
+  trou <- 1
+  succ <- 2
+  tant que succ < t.taille faire
+    si t.tab[succ].cout > t.tab[succ+1].cout alors
+      succ <- succ + 1
+    fin si
+    t.tab[trou] <- t.tab[succ]
+    trou <- succ
+    succ <- succ * 2
+  fin tant que
+  k <- t.tab[t.taille].cout
+  pred <- trou/2
+  tant que pred > 1 et t.tab[pred].cout > k faire
+    t.tab[trou] <- t.tab[pred]
+    trou <- pred
+    pred <- pred / 2
+  fin tant que
+  t.tab[trou] <- t.tab[t.taille]
+  t.taille <- t.taille - 1
+  t.index[a.dst] <- 0
+  retourne a
+fin algorithme fonction prend_min
+
+algorithme procedure maj
+  Parametres locaux
+    reel		cout
+    t_listsom		ps
+  Parametres globaux
+    t_tas		t
+  Variables
+    entier		pos
+    t_arc		a
+debut
+  pos <- t.index[ps^.som]
+  si (pos = 0) alors
+    ajout(cout,ps,t)
+  sinon
+    a <- t.tab[pos]
+    a.cout <- cout
+    tant que pos > 1 et t.tab[pos/2].cout > cout faire
+      t.tab[pos] <- t.tab[pos/2]
+      pos <- pos/2
+    fin tant que
+    t.tab[pos] <- a
+    t.index[ps^.som] <- pos
+  fin si
+fin algorithme procedure maj
+
+algorithme fonction recherche : t_listsom
+  Parametres locaux
+    entier			s
+    t_graphe_d			g
+  Variables
+    t_listsom			ps
+debut
+  ps <- g.lsom
+  tant que ps <> NUL et ps^.som <> s faire
+    ps <- ps^.suiv
+  fin tant que
+  retourne ps
+fin algorithme fonction recherche
+
+algorithme procedure prim
+  Parametres locaux
+    t_graphe_d			g
+    entier			racine
+  Parametres globaux
+    t_vect_entier		peres
+  Variables
+    t_listsom			ps
+    t_listadj			pa
+    t_vect_reel			cout
+    t_tas			t
+    entier			i
+    t_arc			a
+debut
+  pour i <- 1 jusque g.ordre faire
+    peres[i] <- 0
+    cout[i] <- $
+  fin pour
+  t <- tas_vide()
+  ps <- recherche(racine,g)
+  cout[racine] <- 0
+  peres[racine] <- -racine
+  ajout(0,ps,t)
+  faire
+    a <- prend_min(t)
+    ps <- a.ps
+    peres[ps^.som] <- -peres[ps^.som]
+    pa <- ps^.succ
+    tant que pa<>NUL faire
+      i <- pa^.vsom^.som
+      si peres[i] <= 0 alors
+        si cout[i] > pa^.cout alors
+	  peres[i] <- -(ps^.som)
+	  cout[i] <- pa^.cout
+	  maj(cout[i],pa^.vsom,t)
+	fin si
+      fin si
+      pa <- pa^.suiv
+    fin tant que
+  tantque non (est_tas_vide(t))
+fin algorithme procedure prim
+
+Variables
+  t_graphe_d			g
+  entier			i
+  t_vect_entier			peres
+
+debut
+  charger_graphe("graphe-exo2.gr",g)
+  prim(g,1,peres)
+  pour i <- 1 jusque g.ordre faire
+    ecrire("(",i,",",peres[i],")")
+  fin pour
+  ecrire("\n")
+  ecrire(hauteur(peres,1,g.ordre),"\n")
+  ecrire("digraph ARPM{\n")
+  ecrire("  node [shape=circle, fixedsize=true];\n")
+  pour i <- 1 jusque g.ordre faire
+    si (i <> peres[i]) alors
+      ecrire("  ",peres[i]," -> ",i,";\n")
+    fin si
+  fin pour
+  ecrire("}\n")
+fin

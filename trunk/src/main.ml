@@ -99,7 +99,6 @@ let main () =
       in
       let lexbuf = Lexing.from_channel cin in
       let ((algos,td), entry_point) = Parser.main Lexer.token lexbuf in
-      let (uname,entry_point) = Mangling.mangle_vars_entryp entry_point in
       let builtins = Primitives.builtins () in
       let gl = new T_graphe.graph_loader_primitive in
       let _ =
@@ -128,8 +127,7 @@ let main () =
 	  end;
 	if (!po || !pr) then
 	  begin
-	    let entry_point = Mangling.unmangle_vars_entryp uname entry_point in
-	      full_pp (!tex) algos td entry_point;
+	    full_pp (!tex) algos td entry_point;
 	  end
     end
   with
@@ -137,5 +135,7 @@ let main () =
 	print_type_error s l; exit 2
     | Typing.Not_left_value l ->
 	print_type_error "expresion is not a left value" l; exit 2
+    | Typing.Unknown_id (x,l) ->
+	print_type_error ("Unbound identifier "^x) l; exit 2
 
 let _ = main ()

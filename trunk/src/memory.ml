@@ -135,11 +135,12 @@ object (s)
 
 end
 
-class call_stack (iv:init_value) =
+class call_stack (iv:init_value) c =
 object (s)
   val global = Hashtbl.create 7
   val local  = Hashtbl.create 7
   val vars   = Hashtbl.create 13
+  val const  = c
   val init_v = iv
 
   method get_init = init_v
@@ -150,15 +151,22 @@ object (s)
   method add_vars x t =
     Hashtbl.add vars x (init_v#build_value t)
 
+  method add_const x v =
+    Hashtbl.add const x v
+
   method get_global x =
     (snd (Hashtbl.find global x))()
+
+  method get_const = const
 
   method get x =
     try Hashtbl.find vars x with
 	Not_found ->
 	  begin
 	    try Hashtbl.find local x with
-		Not_found -> s#get_global x
+		Not_found ->
+		  try s#get_global x with
+		      Not_found -> Hashtbl.find const x
 	  end
 
   method set_global x v =
@@ -269,11 +277,10 @@ let rec op_eval mem cs o p = match (o,p) with
 	raise (Invalid_operation)
       end
 
-open Lexing
 let print_location m (sp,ep) =
   Printf.fprintf stderr "%s: from line %d char %d to line %d char %d\n" m
-    sp.pos_lnum (sp.pos_cnum - sp.pos_bol)
-    ep.pos_lnum (ep.pos_cnum - ep.pos_bol)
+    sp.Lexing.pos_lnum (sp.Lexing.pos_cnum - sp.Lexing.pos_bol)
+    ep.Lexing.pos_lnum (ep.Lexing.pos_cnum - ep.Lexing.pos_bol)
 
 let rec eval_expr fenv mem cs = function
     Ast.Int (i,_) -> Int i
@@ -543,29 +550,21 @@ object (s)
 	Not_found -> s#builtin_call name el mem cs l
 
   method private inner_call f (el: 'a Ast.expr list) mem (cs:call_stack) =
-    let u = new Mangling.uniq_name ("pg_"^s#nextcpt) in
     let ret = ref Nul in
       begin
-	List.iter2 (
-	  fun e -> function
-	      Local x  -> cs#add_local x (eval_expr s mem cs e)
-	    | Global x ->
-		let (get,set) = glob_eval s mem cs e in
-		  begin
-		    u#add x;
-		    cs#add_global (u#name x) set get;
-		  end
-	) el f.param;
-	let code = List.map (Mangling.mangle_vars_instr u) f.code in
-          List.iter (fun (v,t) -> cs#add_vars v t) f.vars;
-	  ignore (eval_block ret s mem cs code);
-	  List.iter
-	    (function
-		 Local v  -> cs#remove_local v
-	       | Global v -> cs#remove_global (u#name v)) f.param;
-	  List.iter (function (v,_) -> cs#remove_vars v) f.vars;
-	  !ret;
-      end
+	let ccs = new call_stack (cs#get_init) (cs#get_const)in
+	  List.iter2 (
+	    fun e -> function
+		Local x  -> ccs#add_local x (eval_expr s mem cs e)
+	      | Global x ->
+		  let (get,set) = glob_eval s mem cs e in
+		    ccs#add_global x set get;
+	  ) el f.param;
+          List.iter (fun (v,t) -> ccs#add_vars v t) f.vars;
+	  ignore (eval_block ret s mem ccs f.code);
+      end;
+      Gc.full_major ();
+      !ret;
 
   method private builtin_call name el mem cs (l:'a) =
     builtins#call name (new callctx el s mem cs l)
@@ -576,7 +575,7 @@ end
 
 let eval te algos td (Ast.Main (v,il)) builtins =
   let iv = new init_value te in
-  let cs = new call_stack iv in
+  let cs = new call_stack iv (Hashtbl.create 7) in
   let mem = new memory in
   let fenv = new function_env builtins iv in
   let ret = ref Nul in
@@ -587,7 +586,7 @@ let eval te algos td (Ast.Main (v,il)) builtins =
   in
     begin
       List.iter
-	(fun (n,e,_) -> cs#add_local n (eval_expr fenv mem cs e))
+	(fun (n,e,_) -> cs#add_const n (eval_expr fenv mem cs e))
 	td.Ast.constants;
       List.iter fenv#add algos;
       List.iter (fun (v,t) -> cs#add_vars v t) vars;
@@ -598,9 +597,4 @@ let eval te algos td (Ast.Main (v,il)) builtins =
 	      Printf.fprintf stderr "Unknown type: %s\n" n;
 	      exit 3
 	    end
-(* 	| Invalid_argument s -> *)
-(* 	    begin *)
-(* 	      Printf.fprintf stderr "in eval (%s)\n" s; *)
-(* 	      exit 3 *)
-(* 	    end *)
     end
