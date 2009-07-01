@@ -198,7 +198,7 @@ let get_bool = function
   | _ -> assert false
 
 let get_index i = function
-    Array tab -> tab.(get_int i)
+    Array tab -> tab.((get_int i) - 1)
   | _ -> assert false
 
 let deref (mem:memory) = function
@@ -210,7 +210,7 @@ let get_field_set f = function
   | _ -> assert false
 
 let get_index_set i = function
-    Array tab -> (fun v -> tab.(get_int i) <- v)
+    Array tab -> (fun v -> tab.((get_int i) - 1) <- v)
   | _ -> assert false
 
 let deref_set (mem:memory) = function
@@ -219,22 +219,39 @@ let deref_set (mem:memory) = function
 
 exception Invalid_operation
 
-let op_eval mem cs o p = match (o,p) with
+let auto_cast_op = function
+    [Int i1; Float f2] ->
+      [Int i1; Int (int_of_float f2)]
+  | [Float f1; Int i2] ->
+      [Float f1; Float (float i2)]
+  | l -> l
+
+let is_arith = function
+    "+" | "-" | "*" | "/" -> true
+  | _ -> false
+
+let rec op_eval mem cs o p = match (o,p) with
     ("+",[Int i1; Int i2]) -> Int (i1+i2)
   | ("-",[Int i1; Int i2]) -> Int (i1-i2)
   | ("*",[Int i1; Int i2]) -> Int (i1*i2)
   | ("/",[Int i1; Int i2]) -> Int (i1/i2)
   | ("%",[Int i1; Int i2]) -> Int (i1 mod i2)
   | ("div",[Int i1; Int i2]) -> Int (i1/i2)
-  | ("+.",[Float i1; Float i2]) -> Float (i1+.i2)
+  | ("+",[Float i1; Float i2]) -> Float (i1+.i2)
   | ("-",[Float i1; Float i2]) -> Float (i1-.i2)
-  | ("*.",[Float i1; Float i2]) -> Float (i1*.i2)
-  | ("/.",[Float i1; Float i2]) -> Float (i1/.i2)
+  | ("*",[Float i1; Float i2]) -> Float (i1*.i2)
+  | ("/",[Float i1; Float i2]) -> Float (i1/.i2)
+  | (o,([Float _; Int _] | [Int _; Float _])) when is_arith o
+       -> op_eval mem cs o (auto_cast_op p)
   | ("+",[Str s1; Str s2]) -> Str (s1^s2)
   | ("-",[Int i]) -> Int (-i)
   | ("-",[Float i]) -> Float (-.i)
   | ("non",[Bool b]) -> Bool (not b)
   | ("et",[Bool b1; Bool b2]) -> Bool (b1 && b2)
+  | (("<"|"<="),[_;Inf]) -> Bool true
+  | ((">"|">="),[_;Inf]) -> Bool false
+  | (("<"|"<="),[Inf;_]) -> Bool false
+  | ((">"|">="),[Inf;_]) -> Bool true
   | ("<",[v1;v2]) -> Bool (v1<v2)
   | ("<=",[v1;v2]) -> Bool (v1<=v2)
   | (">",[v1;v2]) -> Bool (v1>v2)
@@ -244,8 +261,19 @@ let op_eval mem cs o p = match (o,p) with
   | ("^",[p]) -> deref mem p
   | ("f2i",[Float f]) -> Int (int_of_float f)
   | ("i2f",[Int i]) -> Float (float i)
+  | (("i2f"|"f2i"),[Inf]) -> Inf
   | (_,(Nul::_|_::Nul::_)) -> raise (Nul_pointer)
-  | _ -> raise (Invalid_operation)
+  | _ ->
+      begin
+	Printf.fprintf stderr "op: %s\n" o;
+	raise (Invalid_operation)
+      end
+
+open Lexing
+let print_location m (sp,ep) =
+  Printf.fprintf stderr "%s: from line %d char %d to line %d char %d\n" m
+    sp.pos_lnum (sp.pos_cnum - sp.pos_bol)
+    ep.pos_lnum (ep.pos_cnum - ep.pos_bol)
 
 let rec eval_expr fenv mem cs = function
     Ast.Int (i,_) -> Int i
@@ -273,11 +301,15 @@ let rec eval_expr fenv mem cs = function
   | Ast.Ident (x,_) -> cs#get x
   | Ast.Field (e,f,_) ->
       get_field f (eval_expr fenv mem cs e)
-  | Ast.Get (e,el,_) ->
-      List.fold_left
-	(fun a i -> get_index i a)
-	(eval_expr fenv mem cs e)
-	(List.map (eval_expr fenv mem cs) el)
+  | Ast.Get (e,el,l) ->
+      try
+	List.fold_left
+	  (fun a i -> get_index i a)
+	  (eval_expr fenv mem cs e)
+	  (List.map (eval_expr fenv mem cs) el)
+      with
+	  Invalid_argument _ ->
+	    (print_location "Array access out of bound" l; exit 3)
 
 let left_eval fenv mem cs = function
     Ast.Ident (x,_) ->
@@ -286,13 +318,17 @@ let left_eval fenv mem cs = function
       deref_set mem (eval_expr fenv mem cs e)
   | Ast.Field (e,f,_) ->
       get_field_set f (eval_expr fenv mem cs e)
-  | Ast.Get (e,el,_) ->
-      let rec aux a = function
-	  [] -> assert false
-	| h::[] -> get_index_set (eval_expr fenv mem cs h) a
-	| h::t ->
-	    aux (get_index (eval_expr fenv mem cs h) a) t
-      in aux (eval_expr fenv mem cs e) el
+  | Ast.Get (e,el,l) ->
+      (try
+	 let rec aux a = function
+	     [] -> assert false
+	   | h::[] -> get_index_set (eval_expr fenv mem cs h) a
+	   | h::t ->
+	       aux (get_index (eval_expr fenv mem cs h) a) t
+	 in aux (eval_expr fenv mem cs e) el
+       with
+	   Invalid_argument _ ->
+	     (print_location "Array access out of bound" l; exit 3))
   | _ -> assert false
 
 let glob_eval fenv mem cs = function
@@ -304,15 +340,19 @@ let glob_eval fenv mem cs = function
   | Ast.Field (e,f,_) ->
       let v = (eval_expr fenv mem cs e) in
 	((fun () -> get_field f v), get_field_set f v)
-  | Ast.Get (e,el,_) ->
-      let rec aux a = function
-	  [] -> assert false
-	| h::[] ->
-	    let v = (eval_expr fenv mem cs h) in
-	      ((fun () -> get_index v a), get_index_set v a)
-	| h::t ->
-	    aux (get_index (eval_expr fenv mem cs h) a) t
-      in aux (eval_expr fenv mem cs e) el
+  | Ast.Get (e,el,l) ->
+      (try
+	 let rec aux a = function
+	     [] -> assert false
+	   | h::[] ->
+	       let v = (eval_expr fenv mem cs h) in
+		 ((fun () -> get_index v a), get_index_set v a)
+	   | h::t ->
+	       aux (get_index (eval_expr fenv mem cs h) a) t
+	 in aux (eval_expr fenv mem cs e) el
+       with
+	   Invalid_argument _ ->
+	     (print_location "Array access out of bound" l; exit 3))
   | e ->
       begin
 	Format.printf "Glob_eval: @[<v>";
@@ -558,9 +598,9 @@ let eval te algos td (Ast.Main (v,il)) builtins =
 	      Printf.fprintf stderr "Unknown type: %s\n" n;
 	      exit 3
 	    end
-	| Invalid_argument _ ->
-	    begin
-	      Printf.fprintf stderr "in eval\n";
-	      exit 3
-	    end
+(* 	| Invalid_argument s -> *)
+(* 	    begin *)
+(* 	      Printf.fprintf stderr "in eval (%s)\n" s; *)
+(* 	      exit 3 *)
+(* 	    end *)
     end
