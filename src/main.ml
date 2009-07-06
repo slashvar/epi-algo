@@ -122,7 +122,7 @@ let main () =
 		algos
 	    in
 	      Format.printf "BEGIN EVALUATION:@.";
-	      Memory.eval te algos td entry_point builtins;
+	      Memory.eval te algos entry_point builtins;
 	      Format.printf "END EVALUATION@."
 	  end;
 	if (!po || !pr) then

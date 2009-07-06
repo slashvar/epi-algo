@@ -89,10 +89,36 @@ let rec value2str = function
   | Array _ ->
       "[| TABLEAUX |]"
 
+exception Cte_error of (Lexing.position * Lexing.position)
+
+let eval_cte cenv = function
+    Ast.Int (v,_) -> Int v
+  | Ast.Float (v,_) -> Float v
+  | Ast.Bool (v,_) -> Bool v
+  | Ast.Char (v,_) -> Char v
+  | Ast.Str (v,_) -> Str v
+  | Ast.Ident (x,l) ->
+      begin
+	try
+	  Hashtbl.find cenv x
+	with
+	    Not_found -> raise (Cte_error l)
+      end
+  | e -> assert false
+
+let rebox_cte cenv = function
+    Typing.Int v -> Int v
+  | Typing.Float v -> Float v
+  | Typing.Bool v -> Bool v
+  | Typing.Char v -> Char v
+  | Typing.Str v -> Str v
+
 class memory =
 object (s)
+  constraint 'loc = Lexing.position * Lexing.position
   val mutable size = 0
   val mem = Hashtbl.create 53
+
   method newp = size <- size + 1 ; size
   method alloc =
     Hashtbl.add mem s#newp Nul; size
@@ -109,10 +135,12 @@ object (s)
 	Hashtbl.replace mem p v
       end
     else raise Nul_pointer
+
 end
 
 class init_value (te:Typing.type_env) =
 object (s)
+  val cte = Hashtbl.create 53
 
   method build_value t = match te#real_type t with
       Typing.Record h -> s#build_record h
@@ -133,14 +161,26 @@ object (s)
 
   method get_type_env = te
 
+  method insert_cte l =
+    List.fold_left
+	(fun () (n,e) -> Hashtbl.add cte n (rebox_cte cte e)) () l
+  method get_cte x =
+    try
+      Hashtbl.find cte x
+    with
+	Not_found -> assert false
+
+  initializer
+    List.fold_left
+      (fun () (n,e) -> Hashtbl.add cte n (rebox_cte cte e)) () te#export_cte
+
 end
 
-class call_stack (iv:init_value) c =
+class call_stack (iv:init_value) =
 object (s)
   val global = Hashtbl.create 7
   val local  = Hashtbl.create 7
   val vars   = Hashtbl.create 13
-  val const  = c
   val init_v = iv
 
   method get_init = init_v
@@ -151,13 +191,8 @@ object (s)
   method add_vars x t =
     Hashtbl.add vars x (init_v#build_value t)
 
-  method add_const x v =
-    Hashtbl.add const x v
-
   method get_global x =
     (snd (Hashtbl.find global x))()
-
-  method get_const = const
 
   method get x =
     try Hashtbl.find vars x with
@@ -166,7 +201,7 @@ object (s)
 	    try Hashtbl.find local x with
 		Not_found ->
 		  try s#get_global x with
-		      Not_found -> Hashtbl.find const x
+		      Not_found -> iv#get_cte x
 	  end
 
   method set_global x v =
@@ -552,7 +587,7 @@ object (s)
   method private inner_call f (el: 'a Ast.expr list) mem (cs:call_stack) =
     let ret = ref Nul in
       begin
-	let ccs = new call_stack (cs#get_init) (cs#get_const)in
+	let ccs = new call_stack (cs#get_init) in
 	  List.iter2 (
 	    fun e -> function
 		Local x  -> ccs#add_local x (eval_expr s mem cs e)
@@ -573,9 +608,9 @@ end
 
 (* Global full eval *)
 
-let eval te algos td (Ast.Main (v,il)) builtins =
+let eval te algos (Ast.Main (v,il)) builtins =
   let iv = new init_value te in
-  let cs = new call_stack iv (Hashtbl.create 7) in
+  let cs = new call_stack iv in
   let mem = new memory in
   let fenv = new function_env builtins iv in
   let ret = ref Nul in
@@ -585,9 +620,6 @@ let eval te algos td (Ast.Main (v,il)) builtins =
 	 List.rev_append (iv#get_type_env#build_var_list (tn,v)) l) [] v
   in
     begin
-      List.iter
-	(fun (n,e,_) -> cs#add_const n (eval_expr fenv mem cs e))
-	td.Ast.constants;
       List.iter fenv#add algos;
       List.iter (fun (v,t) -> cs#add_vars v t) vars;
       try ignore (eval_block ret fenv mem cs il)

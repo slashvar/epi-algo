@@ -82,10 +82,10 @@ let get_int cte_env e =
       Int v -> v
     | _ -> raise (Wrong_cte (Ast.get_loc e))
 
-let make_cte_env l =
+let make_cte_env l env =
   List.fold_left
     (fun env (n,e,_) -> Env.add n (eval_cte env e) env)
-    Env.empty l
+    env l
 
 
 (* Checking type names existance *)
@@ -161,6 +161,7 @@ let real_type tenv = function
 class type_env ts =
 object (s:'self)
   val env = Hashtbl.create 29
+  val mutable cenv = Env.empty
   val tset = ts
   method add (tn:string) (t:ctype) =
     Hashtbl.add env tn t
@@ -181,6 +182,14 @@ object (s:'self)
     | (tn,pn) ->
 	List.rev_map (fun (n:string) -> (n,s#make_real_type tn)) pn
 
+  method import_cte (c: cte Env.t) =
+    cenv <- Env.fold Env.add cenv c
+
+  method get_cte = cenv
+
+  method export_cte =
+    Env.fold (fun k v l -> (k,v)::l) cenv []
+
   method iter f =
     let s = Stack.create () in
       begin
@@ -188,23 +197,28 @@ object (s:'self)
 	Stack.iter (fun (x,y) -> f x y) s;
       end
   method import (t:'self) =
+    s#import_cte t#get_cte;
     t#iter s#add
 end
 
 (* Build and validate static typing envirronement *)
 
 let build_static_env d =
-  let cte_env = make_cte_env d.Ast.constants in
+  let cte_env = make_cte_env d.Ast.constants Env.empty in
   let ts = build_type_name_set d.Ast.types in
-    (type_cte_env cte_env, ts,
-     List.fold_left
-       (fun env (s,td,_) -> env#add s (eval_type ts cte_env td); env)
-       (new type_env ts)
-       d.Ast.types
-    )
+  let te = (new type_env ts) in
+    begin
+      te#import_cte cte_env;
+      (type_cte_env cte_env, ts,
+       List.fold_left
+	 (fun env (s,td,_) -> env#add s (eval_type ts cte_env td); env)
+	 te
+	 d.Ast.types
+      )
+    end
 
 let extend_static_env (c1,ts1,te1) d =
-  let cte_env = make_cte_env d.Ast.constants in
+  let cte_env = make_cte_env d.Ast.constants te1#get_cte in
   let c  = Env.fold Env.add c1 (type_cte_env cte_env) in
   let ts = List.fold_left
     (fun s (n,_,_) -> TypeSet.add n s) ts1 d.Ast.types

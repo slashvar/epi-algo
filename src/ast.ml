@@ -208,17 +208,17 @@ let rec pp_instr = function
       end
   | If (c,il,_)          ->
       begin
-	Format.printf "@[<v 2>si " ;
+	Format.printf "@[<v 2>si @[<h>" ;
 	pp_expr c;
-	Format.printf " alors@," ;
+	Format.printf "@] alors@," ;
 	list_printer pp_instr "" il;
 	Format.printf "@]@,fin si"
       end
   | IfElse (c,t,e,_)     ->
       begin
-	Format.printf "@[<v 2>si " ;
+	Format.printf "@[<v 2>si @[<h>" ;
 	pp_expr c;
-	Format.printf " alors@," ;
+	Format.printf "@] alors@," ;
 	list_printer pp_instr "" t;
 	Format.printf "@]@,@[<v 2>sinon@,";
 	list_printer pp_instr "" e;
@@ -226,9 +226,9 @@ let rec pp_instr = function
       end
   | While (c,il,_)       ->
       begin
-	Format.printf "@[<v 2>tant que " ;
+	Format.printf "@[<v 2>tant que @[<h>" ;
 	pp_expr c;
-	Format.printf " faire@," ;
+	Format.printf "@] faire@," ;
 	list_printer pp_instr "" il;
 	Format.printf "@]@,fin tant que"
       end
@@ -242,29 +242,29 @@ let rec pp_instr = function
       end
   | ForUp (i,s,e,il,_)   ->
       begin
-	Format.printf "@[<v 2>pour %s <- " i;
+	Format.printf "@[<v 2>pour %s <- @[<h>" i;
 	pp_expr s;
-	Format.printf " jusque " ;
+	Format.printf "@] jusque @[<h>" ;
 	pp_expr e;
-	Format.printf " faire@," ;
+	Format.printf "@] faire@," ;
 	list_printer pp_instr "" il;
 	Format.printf "@]@,fin pour"
       end
   | ForDown (i,s,e,il,_) ->
       begin
-	Format.printf "@[<v 2>pour %s <- " i;
+	Format.printf "@[<v 2>pour %s <- @[<h>" i;
 	pp_expr s;
-	Format.printf " jusque " ;
+	Format.printf "@] jusque @[<h>" ;
 	pp_expr e;
-	Format.printf "decroissant faire@," ;
+	Format.printf "@] decroissant faire@," ;
 	list_printer pp_instr "" il;
 	Format.printf "@]@,fin pour"
       end
   | Switch (e, sl, _)    ->
       begin
-	Format.printf "@[<v 2>selon ";
+	Format.printf "@[<v 2>selon @[<h>";
 	pp_expr e;
-	Format.printf " faire@," ;
+	Format.printf "@] faire@," ;
 	list_printer
 	  (function (e,il) ->
 	     pp_expr e;
