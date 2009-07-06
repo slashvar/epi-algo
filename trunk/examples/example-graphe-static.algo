@@ -1,0 +1,67 @@
+types
+  t_vect_entiers = MAX_SOMMETS entier
+
+algorithme procedure pp_rec
+  Parametres locaux
+    t_graphe_s			g
+    entier			s
+  Parametres globaux
+    t_vect_entiers		peres
+  Variables
+    entier			i,j
+debut
+  pour i <- 1 jusque g.ordre faire
+    si g.adj[s,i] <> 0 et peres[i] = 0 alors
+      peres[i] <- s
+      pp_rec(g,i,peres)
+    fin si
+  fin pour
+fin algorithme procedure pp_rec
+
+algorithme procedure pp
+  Parametres locaux
+    t_graphe_s			g
+  Parametres globaux
+    t_vect_entiers		peres
+  Variables
+    entier			s,i
+debut
+  pour i <- 1 jusque g.ordre faire
+    peres[i] <- 0
+  fin pour
+  pour s <- 1 jusque g.ordre faire
+    si peres[s] = 0 alors
+      peres[s] <- s
+      pp_rec(g,s,peres)
+    fin si
+  fin pour
+fin algorithme procedure pp
+
+Variables
+  t_graphe_s			g
+  entier			i
+  t_vect_entiers		peres
+debut
+  charger_graphe("ex-graphe.gr",g)
+  pp(g,peres)
+  pour i <- 1 jusque g.ordre faire
+    ecrire("----")
+  fin pour
+  ecrire("-\n")
+  pour i <- 1 jusque g.ordre faire
+    ecrire("| ",i," ")
+  fin pour
+  ecrire("|\n")
+  pour i <- 1 jusque g.ordre faire
+    ecrire("----")
+  fin pour
+  ecrire("-\n")
+  pour i <- 1 jusque g.ordre faire
+    ecrire("| ",peres[i]," ")
+  fin pour
+  ecrire("|\n")
+  pour i <- 1 jusque g.ordre faire
+    ecrire("----")
+  fin pour
+  ecrire("-\n")
+fin

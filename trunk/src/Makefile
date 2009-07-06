@@ -1,6 +1,6 @@
 # Makefile for epi-algo
 
-PREFIX=${HOME}/bin
+PREFIX=${HOME}/Local/bin
 
 OCB_DISPLAY = `[ "x${EMACS}" = "xt" ] && echo "-classic-display"`
 
