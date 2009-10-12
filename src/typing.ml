@@ -225,6 +225,7 @@ let extend_static_env (c1,ts1,te1) d =
   in
   let te = new type_env ts in
     te#import te1;
+    te#import_cte cte_env;
     try
       (c, ts,
        List.fold_left
