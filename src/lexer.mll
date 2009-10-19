@@ -62,7 +62,7 @@
 	      ("si",		IF);
 	      ("sinon",		ELSE);
 	      ("alors",		THEN);
-	      ("descroissant",	DESC);
+	      ("decroissant",	DESC);
 	      ("retourne",	RETURN);
 	      ("algorithme",	ALGO);
 	      ("Algorithme",	ALGO);
