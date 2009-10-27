@@ -582,7 +582,7 @@ let rec pp_instr_tex = function
 	pp_expr_tex s;
 	Format.printf " \\jusqua " ;
 	pp_expr_tex e;
-	Format.printf "\\decroissant \\faire@," ;
+	Format.printf " \\decroissant \\faire@," ;
 	list_printer pp_instr_tex "" il;
 	Format.printf "@]@,\\fin \\pour"
       end
