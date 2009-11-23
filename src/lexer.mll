@@ -65,24 +65,16 @@
 	      ("decroissant",	DESC);
 	      ("retourne",	RETURN);
 	      ("algorithme",	ALGO);
-	      ("Algorithme",	ALGO);
 	      ("fonction",	FUNCTION);
-	      ("Fonction",	FUNCTION);
 	      ("procedure",	PROCEDURE);
-	      ("Procedure",	PROCEDURE);
 	      ("parametres",	PARAM);
-	      ("Parametres",	PARAM);
+	      ("parametre",	PARAM);
 	      ("locaux",	LOCAL);
-	      ("Locaux",	LOCAL);
 	      ("local",		LOCAL);
-	      ("Local",		LOCAL);
 	      ("global",	GLOBAL);
-	      ("Global",	GLOBAL);
 	      ("globaux",	GLOBAL);
-	      ("Globaux",	GLOBAL);
-	      ("Variables",	VAR);
+	      ("variables",	VAR);
 	      ("debut",		START);
-	      ("Debut",		START);
 	      ("selon",		SWITCH);
 	      ("et",		AND);
 	      ("ou",		OR);
@@ -92,12 +84,11 @@
 	      ("NUL",		NUL);
 	      ("div",		DIV);
 	      ("constantes",	CTE);
-	      ("Constantes",	CTE);
 	      ("types",		TYPES);
-	      ("Types",		TYPES);
 	      ("enregistrement",RECORD);
 	    ]
-  let _ = List.iter (function (k,v) -> Hashtbl.add ht_kwd k v) kwd
+  let _ = List.iter (function (k,v) -> Hashtbl.add ht_kwd
+		       (String.lowercase k) v) kwd
 
   let ht_sym = Hashtbl.create 17
   let sym =
@@ -141,7 +132,8 @@ rule token = parse
   | "'"(_ as c)"'"			{ CHAR(c) }
   | '"'([^'"']* as s)'"'		{ STR(s) }
   | ident as i				{ try
-					    Hashtbl.find ht_kwd i
+					    Hashtbl.find ht_kwd
+					      (String.lowercase i)
 					  with
 					      Not_found -> ID(i)
 					}
