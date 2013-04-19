@@ -84,12 +84,13 @@ let builtin_allouer =
 
 (* free pointer: "liberer" *)
 let builtin_liberer_code cc =
-  ((match cc#get_arg with
-    | Some (Memory.Pointer p) -> cc#get_mem#free p
-    | Some Memory.Nul -> ()
-    | _ -> assert false);
-   Memory.
-   Nul)
+  begin
+    (match cc#get_arg with
+      | Some (Memory.Pointer p) -> cc#get_mem#free p
+      | Some Memory.Nul -> ()
+      | _ -> assert false);
+    Memory.Nul;
+  end
 
 let builtin_liberer_typecheck tc =
   match tc#real_type tc#get_intype with
@@ -99,6 +100,23 @@ let builtin_liberer_typecheck tc =
 let builtin_liberer =
   new Builtins.builtin_basic "liberer" builtin_liberer_code
     builtin_liberer_typecheck
+
+(* compute log(n) in float *)
+let builtin_log_code cc =
+  begin
+    match cc#get_arg with
+      | Some (Memory.Float f) -> Memory.Float (log f)
+      | _ -> assert false
+  end
+
+let builtin_log_typecheck tc =
+  match tc#real_type tc#get_intype with
+    | Typing.TFloat -> Typing.TFloat
+    | t -> raise (Typing.Type_mismatch (t, Typing.TFloat))
+
+let builtin_log =
+  new Builtins.builtin_basic "log" builtin_log_code
+    builtin_log_typecheck
 
 (* output value on stdout: "ecrire" *)
 let builtin_ecrire_code cc =
@@ -157,10 +175,11 @@ let builtin_lire =
 let builtins () =
   let b = new Builtins.builtin_env
   in
-    (b#add builtin_liberer;
-     b#add builtin_ecrire;
-     b#add builtin_allouer;
-     b#add builtin_lire;
-     b)
-
-
+    begin
+      b#add builtin_liberer;
+      b#add builtin_ecrire;
+      b#add builtin_allouer;
+      b#add builtin_lire;
+      b#add builtin_log;
+      b
+    end
