@@ -137,14 +137,21 @@ rule token = parse
 					  with
 					      Not_found -> ID(i)
 					}
-  |  symba as s				{ try
-					    Hashtbl.find ht_sym s
-					  with
-					      Not_found -> raise
-						(Error_lex (s,
-							    lexeme_start_p lexbuf,
-							    lexeme_end_p lexbuf))
-					}
+  |  symba as s
+      {
+        try
+					Hashtbl.find ht_sym s
+		    with
+				  | Not_found
+            -> raise (
+              Error_lex (s, lexeme_start_p lexbuf, lexeme_end_p lexbuf)
+            )
+			}
+  | _ {
+    raise (
+      Error_lex ("", lexeme_start_p lexbuf, lexeme_end_p lexbuf)
+    )
+  }
 and comment = parse
     "*/"				{ token lexbuf }
   | ['\n']				{ update_lexbuf lexbuf; comment lexbuf }

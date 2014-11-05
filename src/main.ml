@@ -48,6 +48,12 @@ let print_type_error s (sp,ep) =
     ep.Lexing.pos_lnum (ep.Lexing.pos_cnum - ep.Lexing.pos_bol);
   Format.eprintf "%s@]@." s
 
+let print_lex_error s (sp,ep) =
+  Format.eprintf "@[<v>Lexical error: from line %d char %d to line %d char %d@,"
+    sp.Lexing.pos_lnum (sp.Lexing.pos_cnum - sp.Lexing.pos_bol)
+    ep.Lexing.pos_lnum (ep.Lexing.pos_cnum - ep.Lexing.pos_bol);
+  Format.eprintf "(%s)@]@." s
+
 let tex = ref false
 let po  = ref false
 let tpo = ref false
@@ -102,40 +108,44 @@ let main () =
       let builtins = Primitives.builtins () in
       let gl = new T_graphe.graph_loader_primitive in
       let _ =
-	begin
-	  builtins#add gl#make_builtin;
-	end
+	      begin
+	        builtins#add gl#make_builtin;
+	      end
       in
       let static_env = gl#get_static_env td in
       let (_,_,te) = static_env in
       let fenv = new Typing.funEnv builtins in
-	if (not !po) then
-	  begin
-	    ignore (List.iter (Typing.check_algo static_env fenv) algos);
-	    ignore (Typing.check_entry_point static_env fenv entry_point);
-	  end;
-	if (not (!po || !tpo || !pr)) then
-	  begin
-	    let algos =
-	      List.map
-		(Typing.auto_cast_algo static_env fenv)
-		algos
-	    in
-	      Format.printf "BEGIN EVALUATION:@.";
-	      Memory.eval te algos entry_point builtins;
-	      Format.printf "END EVALUATION@."
-	  end;
-	if (!po || !pr) then
-	  begin
-	    full_pp (!tex) algos td entry_point;
-	  end
+	    if (not !po) then
+	      begin
+	        ignore (List.iter (Typing.check_algo static_env fenv) algos);
+	        ignore (Typing.check_entry_point static_env fenv entry_point);
+	      end;
+	    if (not (!po || !tpo || !pr)) then
+	      begin
+	        let algos =
+	          List.map
+		          (Typing.auto_cast_algo static_env fenv)
+		          algos
+	        in
+	        (* Format.printf "BEGIN EVALUATION:@."; *)
+          Format.printf "@[<v>";
+	        Memory.eval te algos entry_point builtins;
+          Format.printf "@]@.";
+	        (* Format.printf "END EVALUATION@." *)
+	      end;
+	    if (!po || !pr) then
+	      begin
+	        full_pp (!tex) algos td entry_point;
+	      end
     end
   with
-      Typing.Type_error (s,l) ->
-	print_type_error s l; exit 2
-    | Typing.Not_left_value l ->
-	print_type_error "expresion is not a left value" l; exit 2
-    | Typing.Unknown_id (x,l) ->
-	print_type_error ("Unbound identifier "^x) l; exit 2
+    | Typing.Type_error (s,l)
+      -> print_type_error s l; exit 2
+    | Typing.Not_left_value l
+      -> print_type_error "expresion is not a left value" l; exit 2
+    | Typing.Unknown_id (x,l)
+      -> print_type_error ("Unbound identifier "^x) l; exit 2
+    | Lexer.Error_lex (s,p0,p1)
+      -> print_lex_error s (p0,p1); exit 2
 
 let _ = main ()
